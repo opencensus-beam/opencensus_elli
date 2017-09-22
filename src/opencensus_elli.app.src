@@ -1,0 +1,15 @@
+{application, opencensus_elli,
+ [{description, "Elli instrumentation for OpenCensus tracing"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, ["Tristan Sloughter"]},
+  {licenses, ["Apache 2.0"]},
+  {links, [{"Github", "https://github.com/elli-lib/opencensus_elli"}]}
+ ]}.
