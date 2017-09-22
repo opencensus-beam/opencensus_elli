@@ -28,7 +28,17 @@
 
 -define(status(Res), case element(1, Res) of ok -> 200; S1 -> S1 end).
 
-preprocess(Req=#req{raw_path=RawPath, method=Method}, _Config) ->
+preprocess(Req=#req{method=Method}, #{trace_methods := Methods}) ->
+    case lists:member(Method, Methods) of
+        true ->
+            preprocess(Req);
+        _ ->
+            Req
+    end;
+preprocess(Req, _) ->
+    preprocess(Req).
+
+preprocess(Req=#req{raw_path=RawPath, method=Method}) ->
     case elli_request:get_header(<<"TraceContext">>, Req, undefined) of
         undefined ->
             ocp:start_trace();
