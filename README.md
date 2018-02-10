@@ -1,9 +1,17 @@
 opencensus_elli
 =====
 
-An OTP library
+Elli middleware for [OpenCensus](http://opencensus.io/) instrumentation.
 
-Build
------
+```erlang
+{deps, [opencensus_elli]}.
+```
 
-    $ rebar3 compile
+Using the `elli_middleware` callback place `oc_elli_middelware` as the first module to be called in the list of handlers:
+
+```erlang
+[{callback, elli_middleware},
+ {callback_args, [{mods, [{oc_elli_middleware, []},
+                          {<YOUR HANDLER>, []}]}]}]
+```
+

@@ -23,23 +23,10 @@
 
 -export([preprocess/2,
          handle/2,
-         handle_event/3,
-         postprocess/3]).
+         handle_event/3]).
 
--define(status(Res), case element(1, Res) of ok -> 200; S1 -> S1 end).
-
-preprocess(Req=#req{method=Method}, #{trace_methods := Methods}) ->
-    case lists:member(Method, Methods) of
-        true ->
-            preprocess(Req);
-        _ ->
-            Req
-    end;
-preprocess(Req, _) ->
-    preprocess(Req).
-
-preprocess(Req=#req{raw_path=RawPath, method=Method}) ->
-    case elli_request:get_header(<<"TraceContext">>, Req, undefined) of
+preprocess(Req=#req{raw_path=RawPath, method=Method}, _) ->
+    case elli_request:get_header(<<"X-Cloud-Trace-Context">>, Req, undefined) of
         undefined ->
             ocp:start_trace();
         TCHeader ->
@@ -51,14 +38,13 @@ preprocess(Req=#req{raw_path=RawPath, method=Method}) ->
     ocp:put_attributes(attributes(Req)),
     Req.
 
-postprocess(_Req, Res, _Config) ->
-    S = ?status(Res),
-    ocp:put_attribute(<<"/http/status_code">>, integer_to_binary(S)),
-    ocp:finish_span(),
-    Res.
-
 handle(_Req, _Config) ->
     ignore.
+
+handle_event(request_complete, Args, Config) ->
+  handle_full_response(request_complete, Args, Config);
+handle_event(chunk_complete, Args, Config) ->
+  handle_full_response(chunk_complete, Args, Config);
 
 handle_event(request_timeout, _, Config) ->
     finish_exception(request_timeout, request_timeout, Config);
@@ -81,18 +67,42 @@ handle_event(_Event, _Args, _Config) ->
 
 %%
 
+handle_full_response(_Type, [_Req, Code, _Hs, _B, {_Timings, Sizes}], __Config) ->
+    ocp:put_attribute(<<"http.status">>, integer_to_binary(Code)),
+    ResponseSize = size(Sizes, response_body),
+    ocp:put_attribute(<<"http.response_size">>, integer_to_binary(ResponseSize)),
+    ocp:finish_span(),
+    ok.
+
+size(Sizes, response) ->
+    size(Sizes, response_headers) +
+        size(Sizes, response_body);
+size(Sizes, response_headers) ->
+    proplists:get_value(resp_headers, Sizes);
+size(Sizes, response_body) ->
+    case proplists:get_value(chunks, Sizes) of
+        undefined ->
+            case proplists:get_value(file, Sizes) of
+                undefined ->
+                    proplists:get_value(resp_body, Sizes);
+                FileSize -> FileSize
+            end;
+        ChunksSize -> ChunksSize
+    end.
+
 finish_exception(Exception, Stacktrace, _) ->
-    ocp:put_attribute(<<"/stacktrace">>, term_to_string(Stacktrace)),
-    ocp:put_attribute(<<"/error/message">>, term_to_string(Exception)),
+    ocp:put_attributes(#{<<"stacktrace">> => term_to_string(Stacktrace),
+                         <<"error.message">> => term_to_string(Exception)}),
     ocp:finish_span().
 
-attributes(#req{raw_path=Path,
-                method=Method,
-                headers=Headers}) ->
-    maps:from_list([{<<"/span/kind">>, <<"server">>},
-                    {<<"/http/url">>, Path},
-                    {<<"/http/method">>, to_binary(Method)} | Headers]).
-
+attributes(Req=#req{raw_path=Path,
+                    method=Method}) ->
+    Host = elli_request:get_header(<<"Host">>, Req, <<>>),
+    UserAgent = elli_request:get_header(<<"User-Agent">>, Req, <<>>),
+    maps:from_list([{<<"http.url">>, Path},
+                    {<<"http.host">>, Host},
+                    {<<"http.user_agent">>, UserAgent},
+                    {<<"http.method">>, to_binary(Method)}]).
 
 to_binary(Method) when is_atom(Method) ->
     atom_to_binary(Method, utf8);
