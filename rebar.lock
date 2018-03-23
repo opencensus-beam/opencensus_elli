@@ -1,6 +1,18 @@
 {"1.1.0",
-[{<<"elli">>,{pkg,<<"elli">>,<<"2.0.1">>},0}]}.
+[{<<"ctx">>,{pkg,<<"ctx">>,<<"0.4.1">>},1},
+ {<<"elli">>,{pkg,<<"elli">>,<<"3.0.0">>},0},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},1},
+ {<<"opencensus">>,
+  {git,"https://github.com/census-instrumentation/opencensus-erlang",
+       {ref,"3cd0d6a7f78e384ac4097d16ac98ccba99eff5c1"}},
+  0},
+ {<<"rfc3339">>,{pkg,<<"rfc3339">>,<<"0.9.0">>},2},
+ {<<"wts">>,{pkg,<<"wts">>,<<"0.3.0">>},1}]}.
 [
 {pkg_hash,[
- {<<"elli">>, <<"A4DF67A5FB223DAA37FB7080B262CB7BEB9F2B673B5172AF331FE8D8C26B5268">>}]}
+ {<<"ctx">>, <<"E4297DD25CCDE992BC7DE298F514BEACD0A44FAA9126A1F2567306D94C519A13">>},
+ {<<"elli">>, <<"D7CC24CFA886AC6A51D369B2C974392BEC9CD1E1CAA3931194D2BF52B763D82F">>},
+ {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
+ {<<"rfc3339">>, <<"2075653DC9407541C84B1E15F8BDA2ABE95FB17C9694025E079583F2D19C1060">>},
+ {<<"wts">>, <<"5CDF22C775CB1EBAE24C326A5DB6074D753C42F4BD12A9AA47CC62D3E2C71AD1">>}]}
 ].

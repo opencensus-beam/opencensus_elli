@@ -20,31 +20,36 @@
 -behaviour(elli_handler).
 
 -include_lib("elli/include/elli.hrl").
+-include_lib("opencensus/include/opencensus.hrl").
 
 -export([preprocess/2,
          handle/2,
          handle_event/3]).
 
 preprocess(Req=#req{raw_path=RawPath, method=Method}, _) ->
-    case elli_request:get_header(<<"X-Cloud-Trace-Context">>, Req, undefined) of
-        undefined ->
-            ocp:start_trace();
-        TCHeader ->
-            ocp:start_trace(oc_trace_context_headers:decode(TCHeader))
-    end,
-
-    Operation = <<(to_binary(Method))/binary, ":", RawPath/binary>>,
-    ocp:start_span(Operation),
-    ocp:put_attributes(attributes(Req)),
+    SpanCtxHeader = elli_request:get_header(oc_span_ctx_header:field_name(), Req, undefined),
+    ParentSpanCtx = oc_span_ctx_header:decode(SpanCtxHeader),
+    Operation = RawPath,
+    SpanCtx = oc_trace:start_span(Operation, ParentSpanCtx,
+                                  #{report_parent => true,
+                                    kind => ?SPAN_KIND_SERVER,
+                                    attributes => #{<<"http.url">> => RawPath,
+                                                    <<"http.host">> =>
+                                                        elli_request:get_header(<<"Host">>, Req, <<>>),
+                                                    <<"http.user_agent">> =>
+                                                        elli_request:get_header(<<"User-Agent">>, Req, <<>>),
+                                                    <<"http.method">> =>
+                                                        to_binary(Method)}}),
+    ocp:with_span_ctx(SpanCtx),
     Req.
 
 handle(_Req, _Config) ->
     ignore.
 
 handle_event(request_complete, Args, Config) ->
-  handle_full_response(request_complete, Args, Config);
+    handle_full_response(request_complete, Args, Config);
 handle_event(chunk_complete, Args, Config) ->
-  handle_full_response(chunk_complete, Args, Config);
+    handle_full_response(chunk_complete, Args, Config);
 
 handle_event(request_timeout, _, Config) ->
     finish_exception(request_timeout, request_timeout, Config);
@@ -67,18 +72,13 @@ handle_event(_Event, _Args, _Config) ->
 
 %%
 
-handle_full_response(_Type, [_Req, Code, _Hs, _B, {_Timings, Sizes}], __Config) ->
-    ocp:put_attribute(<<"http.status">>, integer_to_binary(Code)),
-    ResponseSize = size(Sizes, response_body),
-    ocp:put_attribute(<<"http.response_size">>, integer_to_binary(ResponseSize)),
-    ocp:finish_span(),
-    ok.
+handle_full_response(_Type, [_Req, Code, _Hs, _B, {_Timings, Sizes}], _Config) ->
+    UncompressedSize = size(Sizes, response_body),
+    ocp:add_time_event(oc_trace:message_event(?MESSAGE_EVENT_TYPE_SENT, 0, UncompressedSize, UncompressedSize)),
+    ocp:put_attribute(<<"http.status_code">>, Code),
+    ocp:set_status(Code, undefined),
+    ocp:finish_span().
 
-size(Sizes, response) ->
-    size(Sizes, response_headers) +
-        size(Sizes, response_body);
-size(Sizes, response_headers) ->
-    proplists:get_value(resp_headers, Sizes);
 size(Sizes, response_body) ->
     case proplists:get_value(chunks, Sizes) of
         undefined ->
@@ -91,18 +91,10 @@ size(Sizes, response_body) ->
     end.
 
 finish_exception(Exception, Stacktrace, _) ->
-    ocp:put_attributes(#{<<"stacktrace">> => term_to_string(Stacktrace),
+    ocp:put_attributes(#{<<"http.status_code">> => 500,
+                         <<"stacktrace">> => term_to_string(Stacktrace),
                          <<"error.message">> => term_to_string(Exception)}),
     ocp:finish_span().
-
-attributes(Req=#req{raw_path=Path,
-                    method=Method}) ->
-    Host = elli_request:get_header(<<"Host">>, Req, <<>>),
-    UserAgent = elli_request:get_header(<<"User-Agent">>, Req, <<>>),
-    maps:from_list([{<<"http.url">>, Path},
-                    {<<"http.host">>, Host},
-                    {<<"http.user_agent">>, UserAgent},
-                    {<<"http.method">>, to_binary(Method)}]).
 
 to_binary(Method) when is_atom(Method) ->
     atom_to_binary(Method, utf8);
@@ -110,4 +102,4 @@ to_binary(Method) ->
     Method.
 
 term_to_string(Term) ->
-    io_lib:format("~p", [Term]).
+    list_to_binary(io_lib:format("~p", [Term])).
