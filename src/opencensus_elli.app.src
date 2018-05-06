@@ -1,10 +1,12 @@
 {application, opencensus_elli,
- [{description, "Elli instrumentation for OpenCensus tracing"},
+ [{description, "Elli instrumentation for OpenCensus stats and tracing"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    opencensus,
+    elli
    ]},
   {env,[]},
   {modules, []},
