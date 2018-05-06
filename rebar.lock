@@ -3,6 +3,10 @@
  {<<"ctx">>,{pkg,<<"ctx">>,<<"0.4.1">>},1},
  {<<"elli">>,{pkg,<<"elli">>,<<"3.0.0">>},0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},1},
+ {<<"opencensus">>,
+  {git,"https://github.com/tsloughter/opencensus-erlang",
+       {ref,"f897e7e197d07ae03480f843121675706f86e023"}},
+  0},
  {<<"rfc3339">>,{pkg,<<"rfc3339">>,<<"0.9.0">>},2},
  {<<"wts">>,{pkg,<<"wts">>,<<"0.3.0">>},1}]}.
 [
