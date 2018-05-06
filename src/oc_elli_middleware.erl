@@ -32,6 +32,7 @@ preprocess(Req=#req{raw_path=RawPath, method=Method}, _) ->
 
     %% update tags from header and new request tags
     BinMethod = to_binary(Method),
+    UserAgent = elli_request:get_header(<<"User-Agent">>, Req, <<>>),
     Host = elli_request:get_header(<<"Host">>, Req, <<>>),
     TagMap = #{http_server_method => BinMethod,
                http_server_path => RawPath,
@@ -46,13 +47,13 @@ preprocess(Req=#req{raw_path=RawPath, method=Method}, _) ->
     end,
 
     %% start child
-    _ =  ocp:with_span_ctx(oc_trace:start_span(RawPath, ParentSpanCtx, #{remote_parent => true,
-                                                                         kind => ?SPAN_KIND_SERVER,
-                                                                         attributes => #{<<"http.url">> => RawPath,
-                                                                                         <<"http.host">> => Host,
-                                                                                         <<"http.user_agent">> =>
-                                                                                             elli_request:get_header(<<"User-Agent">>, Req, <<>>),
-                                                                                         <<"http.method">> => BinMethod}})),
+    _ =  ocp:with_span_ctx(oc_trace:start_span(RawPath, ParentSpanCtx,
+                                               #{remote_parent => true,
+                                                 kind => ?SPAN_KIND_SERVER,
+                                                 attributes => #{<<"http.url">> => RawPath,
+                                                                 <<"http.host">> => Host,
+                                                                 <<"http.user_agent">> => UserAgent,
+                                                                 <<"http.method">> => BinMethod}})),
     Req.
 
 handle(_Req, _Config) ->
@@ -96,7 +97,8 @@ handle_full_response(_Type, [_Req, Code, _Hs, _B, {Timings, Sizes}], _Config) ->
             ok;
         UncompressedReqSize ->
             ocp:record('opencensus.io/http/server/received_bytes', UncompressedReqSize),
-            ocp:add_time_event(oc_trace:message_event(?MESSAGE_EVENT_TYPE_RECEIVED, 0, UncompressedReqSize, UncompressedReqSize))
+            ocp:add_time_event(oc_trace:message_event(?MESSAGE_EVENT_TYPE_RECEIVED, 0,
+                                                      UncompressedReqSize, UncompressedReqSize))
     end,
     ServerLatency = proplists:get_value(request_end, Timings) - proplists:get_value(headers_start, Timings),
     ocp:record('opencensus.io/http/server/server_latency', ServerLatency),

@@ -23,9 +23,16 @@
          register_measures/0]).
 
 register_measures() ->
-    oc_stat_measure:new('opencensus.io/http/server/received_bytes', "Total bytes received in request body (not including headers). This is uncompressed bytes.", bytes),
-    oc_stat_measure:new('opencensus.io/http/server/sent_bytes', "Total bytes sent in response bodies.", bytes),
-    oc_stat_measure:new('opencensus.io/http/server/server_latency', "Time between first byte of request headers read to last byte of response sent, or terminal error.", milli_seconds).
+    oc_stat_measure:new('opencensus.io/http/server/received_bytes',
+                        "Total bytes received in request body (not including headers). "
+                        "This is uncompressed bytes.",
+                        bytes),
+    oc_stat_measure:new('opencensus.io/http/server/sent_bytes',
+                        "Total bytes sent in response bodies.",
+                        bytes),
+    oc_stat_measure:new('opencensus.io/http/server/server_latency', "Time between first byte of "
+                        "request headers read to last byte of response sent, or terminal error.",
+                        milli_seconds).
 
 
 default_views() ->
