@@ -5,8 +5,7 @@
   {applications,
    [kernel,
     stdlib,
-    opencensus,
-    elli
+    opencensus
    ]},
   {env,[]},
   {modules, []},

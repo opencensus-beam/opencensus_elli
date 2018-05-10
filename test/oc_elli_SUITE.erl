@@ -48,7 +48,10 @@ successful_request(_Config) ->
                            <<"http.method">> := <<"GET">>}, Attributes),
             ?assertMatch([{_, #message_event{type=?MESSAGE_EVENT_TYPE_SENT,
                                              compressed_size=12,
-                                             uncompressed_size=12}}], TimeEvents)
+                                             uncompressed_size=12}},
+                          {_, #message_event{type=?MESSAGE_EVENT_TYPE_RECEIVED,
+                                             compressed_size=0,
+                                             uncompressed_size=0}}], TimeEvents)
     after
         5000 ->
             error(timeout)
