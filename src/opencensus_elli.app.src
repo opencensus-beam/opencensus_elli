@@ -1,6 +1,6 @@
 {application, opencensus_elli,
  [{description, "Elli instrumentation for OpenCensus stats and tracing"},
-  {vsn, "0.2.0"},
+  {vsn, "git"},
   {registered, []},
   {applications,
    [kernel,
