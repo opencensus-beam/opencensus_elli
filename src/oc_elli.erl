@@ -54,7 +54,7 @@ default_views() ->
      #{name => "opencensus.io/http/server/server_latency",
        description => "Latency distribution of HTTP requests",
        tags => [http_server_method, http_server_path],
-       measure => 'opencensus.io/http/server/server_blatency',
+       measure => 'opencensus.io/http/server/server_latency',
        aggregation => default_latency_distribution()}].
 
 default_size_distribution() ->
