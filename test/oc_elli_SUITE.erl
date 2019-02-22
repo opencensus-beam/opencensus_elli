@@ -17,9 +17,9 @@ end_per_suite(_Config) ->
     ok.
 
 init_per_testcase(_, Config) ->
+    application:set_env(opencensus, sampler, {oc_sampler_always, []}),
     application:set_env(opencensus, send_interval_ms, 1),
-    application:set_env(opencensus, reporter, {oc_reporter_pid, []}),
-    application:set_env(opencensus, pid_reporter, #{pid => self()}),
+    application:set_env(opencensus, reporters, [{oc_reporter_pid, self()}]),
     {ok, _} = application:ensure_all_started(opencensus),
 
     elli:start_link([{port, 3000},

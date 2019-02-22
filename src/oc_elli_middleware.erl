@@ -17,36 +17,30 @@
 %%%-------------------------------------------------------------------------
 -module(oc_elli_middleware).
 
--behaviour(elli_handler).
-
--include_lib("elli/include/elli.hrl").
 -include_lib("opencensus/include/opencensus.hrl").
 
 -export([preprocess/2,
          handle/2,
          handle_event/3]).
 
-preprocess(Req=#req{raw_path=RawPath, method=Method}, _) ->
-    SpanCtxHeader = elli_request:get_header(oc_span_ctx_header:field_name(), Req, undefined),
-    ParentSpanCtx = oc_span_ctx_header:decode(SpanCtxHeader),
+preprocess(Req, _) ->
+    Headers = elli_request:headers(Req),
+    RawPath = elli_request:raw_path(Req),
+    Method = elli_request:method(Req),
+
+    %% TODO: add configuration option to args to set propagation format
+    ParentSpanCtx = oc_propagation_http_tracecontext:from_headers(Headers),
 
     %% update tags from header and new request tags
     BinMethod = to_binary(Method),
     UserAgent = elli_request:get_header(<<"User-Agent">>, Req, <<>>),
     Host = elli_request:get_header(<<"Host">>, Req, <<>>),
-    TagMap = #{http_server_method => BinMethod,
-               http_server_path => RawPath,
-               http_server_host => Host},
-    TagsHeader = elli_request:get_header(oc_tag_ctx_header:field_name(), Req, <<>>),
-    case oc_tag_ctx_header:decode(TagsHeader) of
-        {ok, ReqTags} ->
-            ocp:with_tags(oc_tags:update(ReqTags, TagMap));
-        {error, {_Module, _Error}} ->
-            %% ?LOG_INFO(Module:format_error(Error))
-            ocp:with_tags(oc_tags:new(TagMap))
-    end,
 
-    %% start child
+    %% TODO: decode tagmap from headers when w3c correlation context is ready
+    %% TagMap = #{http_server_method => BinMethod,
+    %%            http_server_path => RawPath,
+    %%            http_server_host => Host},
+
     _ =  ocp:with_span_ctx(oc_trace:start_span(RawPath, ParentSpanCtx,
                                                #{remote_parent => true,
                                                  kind => ?SPAN_KIND_SERVER,
@@ -54,6 +48,7 @@ preprocess(Req=#req{raw_path=RawPath, method=Method}, _) ->
                                                                  <<"http.host">> => Host,
                                                                  <<"http.user_agent">> => UserAgent,
                                                                  <<"http.method">> => BinMethod}})),
+
     Req.
 
 handle(_Req, _Config) ->
@@ -90,7 +85,8 @@ handle_event(_Event, _Args, _Config) ->
 %%
 
 handle_full_response(_Type, [_Req, Code, _Hs, _B, {Timings, Sizes}], _Config) ->
-    ocp:update_tags(#{http_server_status => integer_to_list(Code)}),
+    %% TODO: add tags when tagmap feature is added to opencensus
+    %% ocp:update_tags(#{http_server_status => integer_to_list(Code)}),
 
     case proplists:get_value(req_body, Sizes) of
         undefined ->
