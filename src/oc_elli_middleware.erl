@@ -36,10 +36,9 @@ preprocess(Req, _) ->
     UserAgent = elli_request:get_header(<<"User-Agent">>, Req, <<>>),
     Host = elli_request:get_header(<<"Host">>, Req, <<>>),
 
-    %% TODO: decode tagmap from headers when w3c correlation context is ready
-    %% TagMap = #{http_server_method => BinMethod,
-    %%            http_server_path => RawPath,
-    %%            http_server_host => Host},
+    ocp:with_tags(#{http_server_method => BinMethod,
+                    http_server_path => RawPath,
+                    http_server_host => Host}),
 
     _ =  ocp:with_span_ctx(oc_trace:start_span(RawPath, ParentSpanCtx,
                                                #{remote_parent => true,
@@ -85,8 +84,7 @@ handle_event(_Event, _Args, _Config) ->
 %%
 
 handle_full_response(_Type, [_Req, Code, _Hs, _B, {Timings, Sizes}], _Config) ->
-    %% TODO: add tags when tagmap feature is added to opencensus
-    %% ocp:update_tags(#{http_server_status => integer_to_list(Code)}),
+    ocp:update_tags(#{http_server_status => integer_to_list(Code)}),
 
     case proplists:get_value(req_body, Sizes) of
         undefined ->
@@ -97,7 +95,8 @@ handle_full_response(_Type, [_Req, Code, _Hs, _B, {Timings, Sizes}], _Config) ->
                                                       UncompressedReqSize, UncompressedReqSize))
     end,
     ServerLatency = proplists:get_value(request_end, Timings) - proplists:get_value(headers_start, Timings),
-    ocp:record('opencensus.io/http/server/server_latency', ServerLatency),
+    ocp:record('opencensus.io/http/server/server_latency',
+               erlang:convert_time_unit(ServerLatency, native, millisecond)),
 
     UncompressedRespSize = size(Sizes, response_body),
     ocp:record('opencensus.io/http/server/sent_bytes', UncompressedRespSize),
